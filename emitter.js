@@ -51,8 +51,7 @@ function getEmitter() {
                     nameEvent => {
                         let currentsEvents = events.get(nameEvent);
                         currentsEvents = currentsEvents.filter(
-                            (existedEvent) => context.wisdom !== existedEvent.context.wisdom &&
-                                context.focus !== existedEvent.context.focus
+                            (existedEvent) => context !== existedEvent.context
                         );
                         events.set(nameEvent, currentsEvents);
                     }
