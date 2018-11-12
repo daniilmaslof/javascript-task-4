@@ -4,7 +4,7 @@
  * Сделано задание на звездочку
  * Реализованы методы several и through
  */
-const isStar = false;
+const isStar = true;
 
 /**
  * Возвращает новый emitter
@@ -17,22 +17,25 @@ function getEmitter() {
 
         /**
          * Подписаться на событие
-         * @param {String} event
+         * @param {String} eventName
          * @param {Object} context
          * @param {Function} handler
+         * @param {Function} additional
          * @returns {Object}
          */
-        on: function (event, context, handler) {
-            if (!events.has(event)) {
-                events.set(event, []);
+        on: function (eventName, context, handler, additional = { times: 0, frequency: 0 }) {
+            if (!events.has(eventName)) {
+                events.set(eventName, []);
             }
-            const eventValue = events.get(event);
-            eventValue.push(
-                {
-                    context: context,
-                    handler: handler
-                });
-            events.set(event, eventValue);
+            const eventValue = events.get(eventName);
+            eventValue.push({
+                context: context,
+                handler: handler,
+                times: additional.times,
+                frequency: additional.frequency,
+                callsCount: 0
+            });
+            events.set(eventName, eventValue);
 
             return this;
         },
@@ -44,9 +47,8 @@ function getEmitter() {
          * @returns {Object}
          */
         off: function (event, context) {
-            [...events.keys()].filter(nameEvent => {
-                return nameEvent.startsWith(event + '.') || nameEvent === event;
-            })
+            Array.from(events.keys()).filter(eventName =>
+                eventName.startsWith(event + '.') || eventName === event)
                 .forEach(
                     nameEvent => {
                         let currentsEvents = events.get(nameEvent);
@@ -67,15 +69,23 @@ function getEmitter() {
          */
         emit: function (event) {
             const allEventsNames = [];
-            while (event) {
-                allEventsNames.push(event);
-                event = event.substring(0, event.lastIndexOf('.'));
+            let prevEventName = '';
+            for (let partEventName of event.split('.')) {
+                if (prevEventName !== '') {
+                    prevEventName += '.';
+                }
+                prevEventName += partEventName;
+                allEventsNames.unshift(prevEventName);
             }
             allEventsNames.filter(nameEvent => events.get(nameEvent))
-                .forEach(nameEvent => {
-                    events.get(nameEvent).forEach(
-                        ({ context, handler }) => {
-                            handler.call(context);
+                .forEach(eventName => {
+                    events.get(eventName).forEach(
+                        ({ context, handler, times, frequency, callsCount }, index) => {
+                            if ((times === 0 || callsCount < times) &&
+                                (frequency === 0 || callsCount % frequency === 0)) {
+                                handler.call(context);
+                            }
+                            events.get(eventName)[index].callsCount ++;
                         });
                 });
 
@@ -89,9 +99,12 @@ function getEmitter() {
          * @param {Object} context
          * @param {Function} handler
          * @param {Number} times – сколько раз получить уведомление
+         * @returns {Object}
          */
         several: function (event, context, handler, times) {
-            console.info(event, context, handler, times);
+            this.on(event, context, handler, { times, frequency: 0 });
+
+            return this;
         },
 
         /**
@@ -101,9 +114,12 @@ function getEmitter() {
          * @param {Object} context
          * @param {Function} handler
          * @param {Number} frequency – как часто уведомлять
+         * @returns {Object}
          */
         through: function (event, context, handler, frequency) {
-            console.info(event, context, handler, frequency);
+            this.on(event, context, handler, { times: 0, frequency });
+
+            return this;
         }
     };
 }
